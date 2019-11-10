@@ -1,0 +1,82 @@
+
+contract Tribezcoin is StandardToken {
+
+    string public constant name = "Tribezcoin";
+    string public constant symbol = "TRIZ";
+    uint8 public constant decimals = 6;
+    uint256 public constant INITIAL_SUPPLY = 10**12 * 10**uint(decimals);
+    uint256 public weiRaised;
+    uint256 public tokenAllocated;
+    address public owner;
+    bool public saleToken = true;
+
+    event OwnerChanged(address indexed previousOwner, address indexed newOwner);
+    event TokenPurchase(address indexed beneficiary, uint256 value, uint256 amount);
+    event TokenLimitReached(uint256 tokenRaised, uint256 purchasedToken);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+
+    function Tribezcoin() public {
+        totalSupply = INITIAL_SUPPLY;
+        owner = msg.sender;
+        //owner = msg.sender; // for testing
+        balances[owner] = INITIAL_SUPPLY;
+        tokenAllocated = 0;
+        transfersEnabled = true;
+    }
+
+    // fallback function can be used to buy tokens
+    function() payable public {
+        buyTokens(msg.sender);
+    }
+
+    function buyTokens(address _investor) public payable returns (uint256){
+        require(_investor != address(0));
+        require(saleToken == true);
+        address wallet = owner;
+        uint256 weiAmount = msg.value;
+        uint256 tokens = validPurchaseTokens(weiAmount);
+        if (tokens == 0) {revert();}
+        weiRaised = weiRaised.add(weiAmount);
+        tokenAllocated = tokenAllocated.add(tokens);
+        mint(_investor, tokens, owner);
+
+        TokenPurchase(_investor, weiAmount, tokens);
+        wallet.transfer(weiAmount);
+        return tokens;
+    }
+
+    function validPurchaseTokens(uint256 _weiAmount) public returns (uint256) {
+        uint256 addTokens = getTotalAmountOfTokens(_weiAmount);
+        if (addTokens > balances[owner]) {
+            TokenLimitReached(tokenAllocated, addTokens);
+            return 0;
+        }
+        return addTokens;
+    }
+
+    /**
+    * If the user sends 0 ether, he receives 4,000,000
+    * If he sends 0.01 ether, he receives 40,000,000 +25%
+    * If he sends 0.05 ether, he receives 200,000,000 +25%
+    * If he sends 0.1 ether he receives 400,000,000 +25%
+    * If he sends 1 ether, he receives 4,000,000,000 +50%
+    */
+    function getTotalAmountOfTokens(uint256 _weiAmount) internal pure returns (uint256) {
+        uint256 amountOfTokens = 0;
+        if(_weiAmount == 0){
+            amountOfTokens = 4000000 * (10**uint256(decimals));
+        }
+        if( _weiAmount == 0.01 ether){
+            amountOfTokens = 40000000 * (10**uint256(decimals));
+        }
+        if( _weiAmount == 0.05 ether){
+            amountOfTokens = 200000000 * (10**uint256(decimals));
+        }
+        if( _weiAmount == 0.1 ether){
+            amountOfTokens = 400000000 * (10**uint256(decimals));
+        }
+        if( _weiAmount == 1 ether){
+            amountOfTokens = 4000000000 * (10**uint256(decimals));
+        }
+        return amountOfTokens;
+    }
